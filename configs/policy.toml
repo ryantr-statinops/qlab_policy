@@ -1,0 +1,21 @@
+# LLM policy config
+
+[llm]
+base_url = "http://localhost:1234/v1"
+# leave empty to auto-detect the single loaded model via GET /v1/models
+model = ""
+temperature = 0.0
+max_tokens = 160
+timeout_sec = 60
+retries = 2
+
+[policy]
+# 5 = SHORT_ALL, SHORT_HALF, FLAT, LONG_HALF, LONG_ALL
+# 3 = FLAT, LONG_HALF, LONG_ALL (no short)
+n_actions = 5
+system_prompt = "You are a disciplined trading risk manager. You receive a market state and you pick one position exposure. Answer with exactly two lines and nothing else."
+
+[prompt]
+# shown to the model verbatim at the top of the user message
+include_history = false
+history_window = 3
