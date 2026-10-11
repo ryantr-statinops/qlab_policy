@@ -120,3 +120,23 @@ def read_csv(path: Path) -> list[Bar]:
                 )
             )
     return bars
+
+
+# ------------------------------------------------------------------ provider
+
+
+class YahooCsvProvider:
+    """Download once into data/raw, then serve from cache."""
+
+    def __init__(self, ticker: str, start: str, end: str | None, cache_dir: Path) -> None:
+        self.ticker = ticker
+        self.start = start
+        self.end = end
+        self.cache_path = cache_dir / f"{ticker}.csv"
+
+    def load(self, refresh: bool = False) -> list[Bar]:
+        if self.cache_path.exists() and not refresh:
+            return read_csv(self.cache_path)
+        bars = fetch_yahoo(self.ticker, self.start, self.end)
+        write_csv(bars, self.cache_path)
+        return bars
