@@ -6,6 +6,7 @@ stdlib only (urllib).
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -38,8 +39,22 @@ class LLMClient:
         req = urllib.request.Request(
             url, data=body, headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        last: Exception | None = None
+        for attempt in range(self.retries + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")
+                raise LLMError(f"HTTP {exc.code} from {url}: {detail[:400]}") from exc
+            except Exception as exc:  # connection refused, timeout, ...
+                last = exc
+                if attempt < self.retries:
+                    time.sleep(0.5 * (attempt + 1))
+        raise LLMError(
+            f"cannot reach {url} after {self.retries + 1} tries: {last}. "
+            "Is LM Studio running with Start Server enabled on the configured port?"
+        )
 
     def _get(self, endpoint: str) -> Any:
         url = f"{self.base_url}/{endpoint}"
