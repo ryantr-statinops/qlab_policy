@@ -15,9 +15,10 @@ Design notes
 
 from __future__ import annotations
 
+import re
 from typing import Sequence
 
-from .actions import action_set
+from .actions import action_set, labels, nearest, value_of
 
 EXPOSURE_FEATURE = "exposure"
 
@@ -83,3 +84,25 @@ def build_user_message(
     parts.append("ACTION: <one of the option names>")
     parts.append("REASON: <one short sentence>")
     return "\n".join(parts)
+
+
+_ACTION_RE = re.compile(r"ACTION\s*[:#\-]?\s*([A-Z][A-Z_]{2,})", re.IGNORECASE)
+
+
+def parse_action(text: str, n_actions: int) -> tuple[float | None, str]:
+    """Return (exposure, matched_label). exposure is None when nothing matched.
+
+    Small models often ignore the requested format and just name the action in
+    prose, so a bare-label scan backs up the explicit ACTION: match.
+    """
+    legal = labels(n_actions)
+    match = _ACTION_RE.search(text or "")
+    if match:
+        label = match.group(1).upper()
+        if label in legal:
+            return value_of(n_actions, label), label
+    upper = (text or "").upper()
+    for label in legal:
+        if re.search(rf"\b{label}\b", upper):
+            return value_of(n_actions, label), label
+    return None, "UNPARSED"
