@@ -14,6 +14,7 @@ negative returns while short are profits.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from ..data.provider import Bar
@@ -40,6 +41,7 @@ class TradingEnv:
         self.fee_rate = fee_bps / 10_000.0
         self.lambda_risk = lambda_risk
         self.liquidate_at_end = liquidate_at_end
+        self.trading_days_per_year = trading_days_per_year
         self.label = label
 
         self.builder = StateBuilder(
@@ -122,3 +124,98 @@ class TradingEnv:
             self.done = True
 
         return self.observe(), reward, self.done, info
+
+    # -------------------------------------------------------------- metrics
+
+    @property
+    def total_return(self) -> float:
+        return self.equity - 1.0
+
+    @property
+    def max_drawdown(self) -> float:
+        peak = -float("inf")
+        worst = 0.0
+        for eq in self.equity_curve:
+            peak = max(peak, eq)
+            if peak > 0:
+                worst = min(worst, eq / peak - 1.0)
+        return worst
+
+    @property
+    def annualiser(self) -> float:
+        return math.sqrt(self.trading_days_per_year)
+
+    @property
+    def sharpe(self) -> float:
+        rets = self.net_returns
+        if len(rets) < 2:
+            return float("nan")
+        mu = sum(rets) / len(rets)
+        var = sum((r - mu) ** 2 for r in rets) / (len(rets) - 1)
+        sd = math.sqrt(var)
+        if sd == 0:
+            return float("nan")
+        return (mu / sd) * self.annualiser
+
+    @property
+    def cagr(self) -> float:
+        n = len(self.net_returns)
+        if n <= 0 or self.equity <= 0:
+            return float("nan")
+        years = n / self.trading_days_per_year
+        if years <= 0:
+            return float("nan")
+        return (self.equity ** (1.0 / years)) - 1.0
+
+    @property
+    def profit_factor(self) -> float:
+        gains = sum(r for r in self.net_returns if r > 0)
+        losses = -sum(r for r in self.net_returns if r < 0)
+        if losses == 0:
+            return float("inf") if gains > 0 else float("nan")
+        return gains / losses
+
+    @property
+    def calmar(self) -> float:
+        mdd = abs(self.max_drawdown)
+        if mdd == 0:
+            return float("inf")
+        return self.cagr / mdd
+
+    def metrics(self) -> dict[str, Any]:
+        flat = sum(1 for a in self.actions if a == 0.0)
+        n = len(self.actions)
+        return {
+            "label": self.label,
+            "n_bars": n,
+            "total_return": self.total_return,
+            "sharpe": self.sharpe,
+            "cagr": self.cagr,
+            "max_drawdown": self.max_drawdown,
+            "profit_factor": self.profit_factor,
+            "calmar": self.calmar,
+            "mean_reward": (sum(self.rewards) / n) if n else float("nan"),
+            "flat_ratio": (flat / n) if n else float("nan"),
+            "mean_exposure": (sum(self.actions) / n) if n else float("nan"),
+            "turnover": sum(
+                abs(a - b) for a, b in zip([0.0] + self.actions, self.actions)
+            ),
+            "final_equity": self.equity,
+        }
+
+    def format_metrics(self) -> str:
+        m = self.metrics()
+
+        def pct(x: float) -> str:
+            return "n/a" if x != x else f"{x * 100:6.2f}%"
+
+        def num(x: float) -> str:
+            return "n/a" if x != x else f"{x:6.2f}"
+
+        return (
+            f"{m['label']:<14} bars={m['n_bars']:>5}  "
+            f"ret={pct(m['total_return'])}  sharpe={num(m['sharpe'])}  "
+            f"cagr={pct(m['cagr'])}  maxDD={pct(m['max_drawdown'])}  "
+            f"PF={num(m['profit_factor'])}  calmar={num(m['calmar'])}  "
+            f"flat={pct(m['flat_ratio'])}  expo={num(m['mean_exposure'])}"
+        )
