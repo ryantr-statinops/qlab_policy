@@ -106,3 +106,77 @@ def parse_action(text: str, n_actions: int) -> tuple[float | None, str]:
         if re.search(rf"\b{label}\b", upper):
             return value_of(n_actions, label), label
     return None, "UNPARSED"
+
+
+class LLMPolicy:
+    name = "llm"
+
+    def __init__(
+        self,
+        client,
+        n_actions: int = 5,
+        system_prompt: str | None = None,
+        memories: Sequence[dict] | None = None,
+        fallback: float | None = None,
+    ) -> None:
+        self.client = client
+        self.n_actions = n_actions
+        self.system_prompt = system_prompt or (
+            "You are a disciplined swing-trading risk manager. You are given a market "
+            "state and you pick one position exposure. Answer in the exact format asked."
+        )
+        self.memories = list(memories or [])
+        self.fallback = nearest(n_actions, 0.0) if fallback is None else fallback
+        self.calls = 0
+        self.parsed = 0
+        self.last_parse_ok = False
+        self.responses: list[str] = []
+
+    def reset(self) -> None:
+        self.calls = 0
+        self.parsed = 0
+        self.last_parse_ok = False
+        self.responses = []
+
+    @property
+    def parse_rate(self) -> float:
+        return self.parsed / self.calls if self.calls else float("nan")
+
+    def act(self, obs: Sequence[float], ctx) -> float:
+        user = build_user_message(
+            obs,
+            ctx.date,
+            ctx.price,
+            self.n_actions,
+            memories=self.memories,
+            names=getattr(ctx.builder, "feature_names", None),
+        )
+        try:
+            response = self.client.chat(
+                [
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": user},
+                ]
+            )
+            text = self.client.text_of(response)
+        except Exception as exc:  # network / server hiccup must not kill the episode
+            self.calls += 1
+            self.last_parse_ok = False
+            self.responses.append(f"<ERROR> {exc}")
+            return self.fallback
+
+        self.calls += 1
+        self.responses.append(text)
+        exposure, _label = parse_action(text, self.n_actions)
+        self.last_parse_ok = exposure is not None
+        if exposure is None:
+            return self.fallback
+        self.parsed += 1
+        return exposure
+
+    def stats(self) -> dict:
+        return {
+            "calls": self.calls,
+            "parsed": self.parsed,
+            "parse_rate": self.parse_rate,
+        }
