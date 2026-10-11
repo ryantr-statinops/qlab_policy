@@ -8,6 +8,10 @@ temperature = 0.0
 max_tokens = 160
 timeout_sec = 60
 retries = 2
+# "none" stops the model spending the whole token budget on reasoning and
+# returning empty content. Verified by scripts\probe_latency.py.
+# Use "low" or "medium" to let it reason (costs latency and tokens).
+reasoning_effort = "none"
 
 [policy]
 # 5 = SHORT_ALL, SHORT_HALF, FLAT, LONG_HALF, LONG_ALL

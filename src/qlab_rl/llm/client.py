@@ -25,6 +25,7 @@ class LLMClient:
         max_tokens: int = 160,
         timeout: int = 60,
         retries: int = 2,
+        reasoning_effort: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -32,6 +33,21 @@ class LLMClient:
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.retries = retries
+        self.reasoning_effort = reasoning_effort
+
+    @classmethod
+    def from_config(cls, cfg: dict, **overrides) -> "LLMClient":
+        """Build a client from the [llm] block of configs/policy.toml."""
+        return cls(
+            base_url=overrides.pop("base_url", cfg["base_url"]),
+            model=overrides.pop("model", cfg["model"]),
+            temperature=overrides.pop("temperature", cfg["temperature"]),
+            max_tokens=overrides.pop("max_tokens", cfg["max_tokens"]),
+            timeout=overrides.pop("timeout", cfg["timeout_sec"]),
+            retries=overrides.pop("retries", cfg["retries"]),
+            reasoning_effort=overrides.pop("reasoning_effort", cfg.get("reasoning_effort")),
+            **overrides,
+        )
 
     def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}/{endpoint}"
@@ -109,6 +125,8 @@ class LLMClient:
             "temperature": self.temperature if temperature is None else temperature,
             "max_tokens": self.max_tokens if max_tokens is None else max_tokens,
         }
+        if self.reasoning_effort:
+            payload["reasoning_effort"] = self.reasoning_effort
         return self._post("chat/completions", payload)
 
     @staticmethod
