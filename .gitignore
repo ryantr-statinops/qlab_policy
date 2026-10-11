@@ -1,0 +1,19 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# market data is downloaded, not versioned
+data/raw/
+
+# per-episode LLM logs and equity curves
+outputs/
+
+# local scratch
+*.log
+note.txt
+
+# editor / os noise
+.DS_Store
+Thumbs.db
