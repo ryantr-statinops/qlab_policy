@@ -1,0 +1,12 @@
+# Data source config
+# Source is intentionally pluggable so vnstock can be swapped in later
+# without touching the environment or policy code.
+
+[data]
+ticker = "SPY"
+start = "2015-01-01"
+# end = ""  # empty means "up to today"
+source = "yahoo"
+cache_dir = "data/raw"
+# trading days per year, for annualisation
+trading_days_per_year = 252
