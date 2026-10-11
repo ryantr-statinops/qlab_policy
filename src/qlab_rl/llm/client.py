@@ -135,3 +135,11 @@ class LLMClient:
         if not choices:
             raise LLMError(f"response has no choices: {str(response)[:300]}")
         return (choices[0].get("message") or {}).get("content", "") or ""
+
+    @staticmethod
+    def reasoning_of(response: dict[str, Any]) -> str:
+        """The model's discarded reasoning trace, for debugging only."""
+        choices = response.get("choices") or []
+        if not choices:
+            return ""
+        return ((choices[0].get("message") or {}).get("reasoning_content") or "")
