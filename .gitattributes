@@ -1,0 +1,8 @@
+# normalize line endings so diffs stay clean across Windows and Linux
+* text=auto eol=lf
+
+# keep these binary
+*.png binary
+*.jpg binary
+*.parquet binary
+*.pyc binary
