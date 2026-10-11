@@ -33,7 +33,13 @@ class LLMClient:
         self.retries = retries
 
     def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
-        raise NotImplementedError
+        url = f"{self.base_url}/{endpoint}"
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
 
     def _get(self, endpoint: str) -> Any:
         url = f"{self.base_url}/{endpoint}"
@@ -74,3 +80,25 @@ class LLMClient:
                 "An embedding model cannot answer chat prompts."
             )
         return chat[0]["id"]
+
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            "model": model or self.resolve_model(),
+            "messages": messages,
+            "temperature": self.temperature if temperature is None else temperature,
+            "max_tokens": self.max_tokens if max_tokens is None else max_tokens,
+        }
+        return self._post("chat/completions", payload)
+
+    @staticmethod
+    def text_of(response: dict[str, Any]) -> str:
+        choices = response.get("choices") or []
+        if not choices:
+            raise LLMError(f"response has no choices: {str(response)[:300]}")
+        return (choices[0].get("message") or {}).get("content", "") or ""
