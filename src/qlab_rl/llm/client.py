@@ -136,6 +136,11 @@ class LLMClient:
         """Return the configured model, else auto-detect the loaded chat model."""
         if self.model:
             return self.model
+        if not self.auto_detect:
+            raise LLMError(
+                f"provider {self.provider!r} requires an explicit model id; "
+                "set model in the provider preset or pass --model."
+            )
         models = self.list_models()
         if not models:
             raise LLMError(
