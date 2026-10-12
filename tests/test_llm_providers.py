@@ -128,5 +128,22 @@ class RetryTest(unittest.TestCase):
         self.assertIn("openrouter", str(err))
 
 
+class ContentTest(unittest.TestCase):
+    def test_text_of_joins_blocks(self):
+        resp = {"choices": [{"message": {"content": [
+            {"type": "text", "text": "ACTION: "},
+            {"type": "text", "text": "LONG_HALF"},
+        ]}}]}
+        self.assertEqual(LLMClient.text_of(resp), "ACTION: LONG_HALF")
+
+    def test_record_fields_append_only(self):
+        from qlab_rl.runner import RECORD_FIELDS
+        self.assertEqual(RECORD_FIELDS[-2:], ["provider", "model"])
+        self.assertEqual(RECORD_FIELDS[:11], [
+            "step", "date", "price", "action", "reward", "equity",
+            "gross_return", "cost", "turnover", "response", "parse_ok",
+        ])
+
+
 if __name__ == "__main__":
     unittest.main()
