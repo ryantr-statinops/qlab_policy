@@ -14,7 +14,7 @@ import time
 
 import _bootstrap  # noqa: F401
 
-from qlab_rl.config import load_data, load_env, load_policy, resolve
+from qlab_rl.config import load_data, load_env, load_policy, load_providers, resolve, resolve_provider
 from qlab_rl.data.provider import YahooCsvProvider
 from qlab_rl.llm.client import LLMClient, LLMError
 from qlab_rl.policies.actions import label_for
@@ -35,11 +35,12 @@ def main() -> int:
     ap.add_argument("--episodes", type=int, default=1)
     ap.add_argument("--max-steps", type=int, default=None, help="stop early (pacing check)")
     ap.add_argument("--actions", type=int, default=pol_cfg["policy"]["n_actions"])
-    ap.add_argument("--base-url", default=pol_cfg["llm"]["base_url"])
-    ap.add_argument("--model", default=pol_cfg["llm"]["model"])
-    ap.add_argument("--temperature", type=float, default=pol_cfg["llm"]["temperature"])
-    ap.add_argument("--max-tokens", type=int, default=pol_cfg["llm"]["max_tokens"])
-    ap.add_argument("--timeout", type=int, default=pol_cfg["llm"]["timeout_sec"])
+    ap.add_argument("--provider", default=pol_cfg["llm"].get("provider", "lmstudio"))
+    ap.add_argument("--base-url", default=None)
+    ap.add_argument("--model", default=None)
+    ap.add_argument("--temperature", type=float, default=None)
+    ap.add_argument("--max-tokens", type=int, default=None)
+    ap.add_argument("--timeout", type=int, default=None)
     ap.add_argument("--out", default="outputs")
     ap.add_argument("--show-prompt", action="store_true")
     args = ap.parse_args()
@@ -63,22 +64,32 @@ def main() -> int:
               f"state length {len(obs)}, {env.last_index - env.warmup} decisions per episode)")
         return 0
 
-    client = LLMClient.from_config(
-        pol_cfg["llm"],
-        base_url=args.base_url,
-        model=args.model,
-        temperature=args.temperature,
-        max_tokens=args.max_tokens,
-        timeout=args.timeout,
-    )
+    try:
+        prov_cfg = resolve_provider(
+            args.provider,
+            pol_cfg["llm"],
+            load_providers(),
+            {
+                "base_url": args.base_url,
+                "model": args.model,
+                "temperature": args.temperature,
+                "max_tokens": args.max_tokens,
+                "timeout": args.timeout,
+            },
+        )
+    except LLMError as exc:
+        print(f"[FAIL] {exc}")
+        return 1
+    client = LLMClient.from_provider(prov_cfg)
     try:
         model = client.resolve_model()
     except LLMError as exc:
         print(f"[FAIL] {exc}")
-        print("Run: python scripts\\check_lmstudio.py")
+        print("Run: python scripts\\check_provider.py --provider " + args.provider)
         return 1
 
     total_bars = env.last_index - env.warmup
+    print(f"provider : {args.provider}")
     print(f"model    : {model}")
     print(f"data     : {args.ticker} {args.split} n={len(segment)} "
           f"{segment[0].date} -> {segment[-1].date}")
