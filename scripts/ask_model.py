@@ -17,7 +17,7 @@ from pathlib import Path
 
 import _bootstrap  # noqa: F401
 
-from qlab_rl.config import load_policy
+from qlab_rl.config import load_policy, load_providers, resolve_provider
 from qlab_rl.llm.client import LLMClient, LLMError
 from qlab_rl.policies.actions import label_for, labels
 from qlab_rl.policies.llm import build_user_message, parse_action
@@ -33,35 +33,45 @@ def main() -> int:
     n_actions = pol_cfg["n_actions"]
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base-url", default=llm_cfg["base_url"])
-    ap.add_argument("--model", default=llm_cfg["model"])
+    ap.add_argument("--provider", default=llm_cfg.get("provider", "lmstudio"))
+    ap.add_argument("--base-url", default=None)
+    ap.add_argument("--model", default=None)
     ap.add_argument("--repeat", type=int, default=1)
-    ap.add_argument("--temperature", type=float, default=llm_cfg["temperature"])
-    ap.add_argument("--max-tokens", type=int, default=llm_cfg["max_tokens"])
-    ap.add_argument("--timeout", type=int, default=llm_cfg["timeout_sec"])
+    ap.add_argument("--temperature", type=float, default=None)
+    ap.add_argument("--max-tokens", type=int, default=None)
+    ap.add_argument("--timeout", type=int, default=None)
     ap.add_argument("--free", action="store_true", help="skip the option list, open-ended question")
     ap.add_argument("--prompt", default=None, help="override the whole user message")
     ap.add_argument("--json", default=None, help="write results to this path")
     args = ap.parse_args()
-
-    client = LLMClient.from_config(
-        llm_cfg,
-        base_url=args.base_url,
-        model=args.model,
-        temperature=args.temperature,
-        max_tokens=args.max_tokens,
-        timeout=args.timeout,
-    )
+    try:
+        prov_cfg = resolve_provider(
+            args.provider,
+            llm_cfg,
+            load_providers(),
+            {
+                "base_url": args.base_url,
+                "model": args.model,
+                "temperature": args.temperature,
+                "max_tokens": args.max_tokens,
+                "timeout": args.timeout,
+            },
+        )
+    except LLMError as exc:
+        print(f"[FAIL] {exc}")
+        return 1
+    client = LLMClient.from_provider(prov_cfg)
 
     try:
         model = client.resolve_model()
     except LLMError as exc:
         print(f"[FAIL] {exc}")
-        print("Run: python scripts\\check_lmstudio.py")
+        print("Run: python scripts\\check_provider.py --provider " + args.provider)
         return 1
 
+    print(f"provider: {args.provider}")
     print(f"model:    {model}")
-    print(f"endpoint: {args.base_url}")
+    print(f"endpoint: {prov_cfg['base_url']}")
     print(f"actions:  {', '.join(labels(n_actions))}\n")
 
     if args.free:
