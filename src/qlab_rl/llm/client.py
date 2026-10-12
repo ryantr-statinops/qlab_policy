@@ -57,6 +57,26 @@ class LLMClient:
             **overrides,
         )
 
+    @classmethod
+    def from_provider(cls, cfg: dict, **overrides) -> "LLMClient":
+        """Build a client from a resolve_provider() dict."""
+        return cls(
+            base_url=cfg["base_url"],
+            model=overrides.pop("model", cfg.get("model", "")),
+            temperature=overrides.pop("temperature", cfg.get("temperature", 0.0)),
+            max_tokens=overrides.pop("max_tokens", cfg.get("max_tokens", 160)),
+            timeout=overrides.pop("timeout", cfg.get("timeout_sec", 60)),
+            retries=overrides.pop("retries", cfg.get("retries", 2)),
+            reasoning_effort=overrides.pop(
+                "reasoning_effort", cfg.get("reasoning_effort")
+            ),
+            provider=overrides.pop("provider", cfg.get("provider", "lmstudio")),
+            api_key=cfg.get("api_key", ""),
+            extra_headers=cfg.get("extra_headers", {}),
+            auto_detect=cfg.get("auto_detect", True),
+            **overrides,
+        )
+
     def _headers(self, content_type: bool = False) -> dict[str, str]:
         """Request headers: auth bearer only when a key is configured."""
         headers = {"Accept": "application/json"}
