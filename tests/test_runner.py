@@ -1,4 +1,4 @@
-"""Runner records, kept flat until C4 moves them to tests/test_runner.py."""
+"""Shared run harness. Mirrors src/qlab_rl/runner.py."""
 
 import sys
 import unittest
@@ -7,12 +7,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from qlab_rl.policies.llm import LLMPolicy
-from qlab_rl.runner import run_policy, write_records
+from qlab_rl.runner import RECORD_FIELDS, run_policy, write_records
 
 from tests.helpers import FakeClient, tiny_ramp_env
 
 
-class TestRunnerRecordsTemp(unittest.TestCase):
+class TestRunnerRecords(unittest.TestCase):
     def test_records_capture_every_step(self):
         client = FakeClient(["ACTION: LONG_HALF\nREASON: ok"] * 50)
         env = tiny_ramp_env()
@@ -41,6 +41,15 @@ class TestRunnerRecordsTemp(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             self.assertIn("step,date,price,action", text)
             self.assertEqual(len(text.strip().splitlines()), len(rows) + 1)
+
+
+class TestRecordFields(unittest.TestCase):
+    def test_record_fields_append_only(self):
+        self.assertEqual(RECORD_FIELDS[-2:], ["provider", "model"])
+        self.assertEqual(RECORD_FIELDS[:11], [
+            "step", "date", "price", "action", "reward", "equity",
+            "gross_return", "cost", "turnover", "response", "parse_ok",
+        ])
 
 
 if __name__ == "__main__":
