@@ -33,6 +33,11 @@ def load_policy() -> dict[str, Any]:
     return {"llm": cfg["llm"], "policy": cfg["policy"], "prompt": cfg["prompt"]}
 
 
+def load_providers() -> dict[str, dict[str, object]]:
+    """Load configs/providers.toml; each top-level table is one provider preset."""
+    return load("providers")
+
+
 def resolve(path_like: str | Path) -> Path:
     """Resolve a config-relative path against the project root."""
     p = Path(path_like)
