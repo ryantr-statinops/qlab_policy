@@ -26,6 +26,7 @@ class LLMClient:
         timeout: int = 60,
         retries: int = 2,
         reasoning_effort: str | None = None,
+        extra_body: dict[str, Any] | None = None,
         provider: str = "lmstudio",
         api_key: str = "",
         api_key_env: str = "",
@@ -39,6 +40,7 @@ class LLMClient:
         self.timeout = timeout
         self.retries = retries
         self.reasoning_effort = reasoning_effort
+        self.extra_body = dict(extra_body or {})
         self.provider = provider
         self.api_key = api_key
         self.api_key_env = api_key_env
@@ -72,6 +74,8 @@ class LLMClient:
             reasoning_effort=overrides.pop(
                 "reasoning_effort", cfg.get("reasoning_effort")
             ),
+            extra_body=overrides.pop("extra_body", cfg.get("extra_body", {})),
+            provider=overrides.pop("provider", cfg.get("provider", "lmstudio")),
             api_key=cfg.get("api_key", ""),
             api_key_env=cfg.get("api_key_env", ""),
             extra_headers=cfg.get("extra_headers", {}),
@@ -210,6 +214,7 @@ class LLMClient:
         }
         if self.reasoning_effort:
             payload["reasoning_effort"] = self.reasoning_effort
+        payload.update(self.extra_body)
         return self._post("chat/completions", payload)
 
     @staticmethod
