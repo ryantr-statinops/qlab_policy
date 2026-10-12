@@ -14,6 +14,7 @@ from .env.trading_env import TradingEnv
 RECORD_FIELDS = [
     "step", "date", "price", "action", "reward", "equity",
     "gross_return", "cost", "turnover", "response", "parse_ok",
+    "provider", "model",
 ]
 
 
