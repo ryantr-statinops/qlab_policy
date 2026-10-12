@@ -1,6 +1,7 @@
 # LLM policy config
 
 [llm]
+provider = "lmstudio"
 base_url = "http://localhost:1234/v1"
 # leave empty to auto-detect the single loaded model via GET /v1/models
 model = ""
