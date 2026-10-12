@@ -30,7 +30,11 @@ Setup detail: [docs/01-setup.md](docs/01-setup.md). Flags and smoke test:
 
 Full notes in [docs/](docs/README.md): architecture, data, splits, state,
 env math, metrics, actions, baselines, LLM policy/client, config, outputs,
-limits.
+limits, providers.
+
+Any OpenAI-compatible endpoint works — local (LM Studio, Ollama, vLLM) or
+cloud (OpenRouter, OpenAI) via `--provider`. See
+[docs/16-providers.md](docs/16-providers.md).
 
 ## Bar to clear
 
