@@ -22,6 +22,16 @@ class TestPromptContext(unittest.TestCase):
         ctx.index = env.warmup + 1
         self.assertEqual(ctx.price, bars[env.warmup + 1].close)
 
+    def test_context_carries_episode_counters_and_builder(self):
+        bars = make_ramp_bars(10)
+        env = TradingEnv(bars, **SMALL_LOOKBACK)
+        env.reset()
+        ctx = PolicyContext(env.builder, env.warmup, episode=2, total_episodes=5)
+        self.assertIs(ctx.builder, env.builder)
+        self.assertEqual(ctx.episode, 2)
+        self.assertEqual(ctx.total_episodes, 5)
+        self.assertEqual(ctx.date, bars[env.warmup].date)
+
 
 if __name__ == "__main__":
     unittest.main()

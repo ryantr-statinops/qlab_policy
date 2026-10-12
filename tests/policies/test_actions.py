@@ -18,6 +18,11 @@ class TestActionSets(unittest.TestCase):
         vals = [v for _, v in action_set(3)]
         self.assertEqual(vals, [0.0, 0.5, 1.0])
 
+    def test_four_actions_drop_full_short(self):
+        vals = [v for _, v in action_set(4)]
+        self.assertEqual(vals, [-0.5, 0.0, 0.5, 1.0])
+        self.assertEqual(labels(4), ["SHORT_HALF", "FLAT", "LONG_HALF", "LONG_ALL"])
+
     def test_unsupported_size_rejected(self):
         with self.assertRaises(ValueError):
             action_set(7)
