@@ -12,7 +12,7 @@ import time
 
 import _bootstrap  # noqa: F401
 
-from qlab_rl.config import load_data, load_env, load_policy, resolve
+from qlab_rl.config import load_data, load_env, load_policy, load_providers, resolve, resolve_provider
 from qlab_rl.data.provider import YahooCsvProvider
 from qlab_rl.llm.client import LLMClient, LLMError
 from qlab_rl.policies import rule
@@ -47,8 +47,9 @@ def main() -> int:
     ap.add_argument("--actions", type=int, default=pol_cfg["policy"]["n_actions"])
     ap.add_argument("--max-steps", type=int, default=None)
     ap.add_argument("--skip-llm", action="store_true")
-    ap.add_argument("--base-url", default=pol_cfg["llm"]["base_url"])
-    ap.add_argument("--model", default=pol_cfg["llm"]["model"])
+    ap.add_argument("--provider", default=pol_cfg["llm"].get("provider", "lmstudio"))
+    ap.add_argument("--base-url", default=None)
+    ap.add_argument("--model", default=None)
     args = ap.parse_args()
 
     cache = resolve(data_cfg["cache_dir"])
@@ -70,12 +71,14 @@ def main() -> int:
         print(f"  {name:<18} {fmt(m)}")
 
     if not args.skip_llm:
-        client = LLMClient.from_config(
-            pol_cfg["llm"],
-            base_url=args.base_url,
-            model=args.model,
-        )
         try:
+            prov_cfg = resolve_provider(
+                args.provider,
+                pol_cfg["llm"],
+                load_providers(),
+                {"base_url": args.base_url, "model": args.model},
+            )
+            client = LLMClient.from_provider(prov_cfg)
             model = client.resolve_model()
             model_short = model.split("/")[-1]
             env = build_env(segment, f"llm/{model_short}")
@@ -86,7 +89,7 @@ def main() -> int:
             started = time.time()
             m = run_policy(env, policy, max_steps=args.max_steps)
             elapsed = time.time() - started
-            name = f"llm:{model_short}"
+            name = f"llm:{args.provider}/{model_short}"
             results.append((name, m))
             print(f"\n  {name:<18} {fmt(m)}")
             print(f"  {'':<18} parse_rate={m['parse_rate'] * 100:.1f}%  "
