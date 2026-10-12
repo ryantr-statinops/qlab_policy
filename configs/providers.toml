@@ -29,3 +29,28 @@ model = ""
 api_key_env = ""
 auto_detect = false
 timeout_sec = 60
+
+[openrouter]
+base_url = "https://openrouter.ai/api/v1"
+model = "qwen/qwen3-4b-instruct"
+api_key_env = "OPENROUTER_API_KEY"
+auto_detect = false
+timeout_sec = 90
+[openrouter.extra_headers]
+HTTP-Referer = "https://github.com/ryantr-statinops/qlab_policy"
+X-Title = "qlab_rl"
+
+[openai]
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+auto_detect = false
+timeout_sec = 90
+
+[custom]
+# fill in for any other OpenAI-compatible endpoint (Together, Fireworks, Groq, ...)
+base_url = ""
+model = ""
+api_key_env = ""
+auto_detect = false
+timeout_sec = 90
