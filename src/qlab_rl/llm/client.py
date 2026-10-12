@@ -87,6 +87,16 @@ class LLMClient:
         headers.update(self.extra_headers)
         return headers
 
+    def _hint(self) -> str:
+        """Provider-specific fix hint for connection errors."""
+        if self.provider == "lmstudio":
+            return "Is LM Studio running with Start Server enabled on the configured port?"
+        if self.provider == "ollama":
+            return "Is Ollama running (ollama serve) with an OpenAI-compatible endpoint?"
+        if self.provider in ("vllm", "llamacpp"):
+            return f"Is the {self.provider} server running at the configured base_url?"
+        return f"Check network access and base_url for provider {self.provider!r}."
+
     def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}/{endpoint}"
         body = json.dumps(payload).encode("utf-8")
@@ -107,7 +117,7 @@ class LLMClient:
                     time.sleep(0.5 * (attempt + 1))
         raise LLMError(
             f"cannot reach {url} after {self.retries + 1} tries: {last}. "
-            "Is LM Studio running with Start Server enabled on the configured port?"
+            + self._hint()
         )
 
     def _get(self, endpoint: str) -> Any:
@@ -118,8 +128,7 @@ class LLMClient:
                 return json.loads(resp.read().decode("utf-8"))
         except Exception as exc:
             raise LLMError(
-                f"cannot reach {url}: {exc}. "
-                "Is LM Studio running with Start Server enabled on the configured port?"
+                f"cannot reach {url}: {exc}. " + self._hint()
             ) from exc
 
     def health(self) -> tuple[bool, str]:
