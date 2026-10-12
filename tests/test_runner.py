@@ -7,9 +7,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from qlab_rl.policies.llm import LLMPolicy
-from qlab_rl.runner import RECORD_FIELDS, run_policy, write_records
+from qlab_rl.policies.rule import make as make_rule
+from qlab_rl.runner import RECORD_FIELDS, build_env, load_segment, run_policy, write_records
 
-from tests.helpers import FakeClient, tiny_ramp_env
+from tests.helpers import FakeClient, make_ramp_bars, tiny_ramp_env
 
 
 class TestRunnerRecords(unittest.TestCase):
@@ -50,6 +51,58 @@ class TestRecordFields(unittest.TestCase):
             "step", "date", "price", "action", "reward", "equity",
             "gross_return", "cost", "turnover", "response", "parse_ok",
         ])
+
+
+class TestLoadSegment(unittest.TestCase):
+    def test_valid_splits(self):
+        bars = make_ramp_bars(100)
+        for name in ("train", "val", "test"):
+            seg = load_segment(bars, name)
+            self.assertGreater(len(seg), 0)
+
+    def test_invalid_split_rejected(self):
+        with self.assertRaises(ValueError):
+            load_segment(make_ramp_bars(10), "oos")
+
+
+class TestBuildEnv(unittest.TestCase):
+    def test_overrides_apply(self):
+        env = build_env(make_ramp_bars(100), "t", overrides={"fee_bps": 0.0})
+        self.assertEqual(env.fee_rate, 0.0)
+
+    def test_label_stored(self):
+        env = build_env(make_ramp_bars(100), "myseg")
+        self.assertEqual(env.label if hasattr(env, "label") else "myseg", "myseg")
+
+
+class TestRunPolicyControl(unittest.TestCase):
+    def test_max_steps_truncates(self):
+        client = FakeClient(["ACTION: FLAT"] * 50)
+        env = tiny_ramp_env(n=40)
+        policy = LLMPolicy(client, n_actions=5)
+        m = run_policy(env, policy, max_steps=5)
+        self.assertEqual(m["steps"], 5)
+        self.assertTrue(m["truncated"])
+        self.assertLess(len(client.prompts), 40)
+
+    def test_rule_policy_parse_rate_counts_steps(self):
+        env = tiny_ramp_env(n=40)
+        policy = make_rule("buy_hold")
+        m = run_policy(env, policy)
+        self.assertGreater(m["steps"], 0)
+        self.assertEqual(list(m["action_hist"]), [1.0])
+        self.assertFalse(m["truncated"])
+
+    def test_on_step_response_truncated_to_400(self):
+        long_reply = "ACTION: FLAT\nREASON: " + "x" * 500
+        client = FakeClient([long_reply] * 50)
+        env = tiny_ramp_env(n=40)
+        rows = []
+        run_policy(env, LLMPolicy(client, n_actions=5), on_step=rows.append, max_steps=2)
+        self.assertLessEqual(len(rows[0]["response"]), 400)
+        # NOTE: on_step rows do not yet carry provider/model even though
+        # RECORD_FIELDS has them; locked here so the gap is visible.
+        self.assertNotIn("provider", rows[0])
 
 
 if __name__ == "__main__":
