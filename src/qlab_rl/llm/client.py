@@ -28,6 +28,7 @@ class LLMClient:
         reasoning_effort: str | None = None,
         provider: str = "lmstudio",
         api_key: str = "",
+        api_key_env: str = "",
         extra_headers: dict[str, str] | None = None,
         auto_detect: bool = True,
     ) -> None:
@@ -40,6 +41,7 @@ class LLMClient:
         self.reasoning_effort = reasoning_effort
         self.provider = provider
         self.api_key = api_key
+        self.api_key_env = api_key_env
         self.extra_headers = dict(extra_headers or {})
         self.auto_detect = auto_detect
 
@@ -70,8 +72,8 @@ class LLMClient:
             reasoning_effort=overrides.pop(
                 "reasoning_effort", cfg.get("reasoning_effort")
             ),
-            provider=overrides.pop("provider", cfg.get("provider", "lmstudio")),
             api_key=cfg.get("api_key", ""),
+            api_key_env=cfg.get("api_key_env", ""),
             extra_headers=cfg.get("extra_headers", {}),
             auto_detect=cfg.get("auto_detect", True),
             **overrides,
@@ -95,6 +97,20 @@ class LLMClient:
         except (AttributeError, TypeError, ValueError):
             return 1.0 * (attempt + 1)
 
+    def _http_error(self, code: int, url: str, detail: str) -> LLMError:
+        """Map auth/quota/model errors to actionable messages (never echoes the key)."""
+        if code == 401:
+            env = getattr(self, "api_key_env", "") or ""
+            hint = f"check ${env}" if env else "check the configured API key"
+            return LLMError(f"HTTP 401 from {url}: invalid or missing API key ({hint}).")
+        if code == 402:
+            return LLMError(f"HTTP 402 from {url}: out of credit: {detail[:200]}")
+        if code == 404:
+            return LLMError(
+                f"HTTP 404 from {url}: unknown model {self.model!r} "
+                f"for provider {self.provider!r}."
+            )
+        return LLMError(f"HTTP {code} from {url}: {detail[:400]}")
 
     def _hint(self) -> str:
         """Provider-specific fix hint for connection errors."""
@@ -125,7 +141,7 @@ class LLMClient:
                         time.sleep(wait)
                         continue
                 detail = exc.read().decode("utf-8", errors="replace")
-                raise LLMError(f"HTTP {exc.code} from {url}: {detail[:400]}") from exc
+                raise self._http_error(exc.code, url, detail) from exc
             except Exception as exc:  # connection refused, timeout, ...
                 last = exc
                 if attempt < self.retries:
