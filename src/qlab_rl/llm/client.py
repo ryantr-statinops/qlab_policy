@@ -87,6 +87,15 @@ class LLMClient:
         headers.update(self.extra_headers)
         return headers
 
+    @staticmethod
+    def _retry_after(exc: Any, attempt: int) -> float:
+        """Backoff honouring the server's Retry-After header when present."""
+        try:
+            return max(0.0, float(exc.headers.get("Retry-After", "")))
+        except (AttributeError, TypeError, ValueError):
+            return 1.0 * (attempt + 1)
+
+
     def _hint(self) -> str:
         """Provider-specific fix hint for connection errors."""
         if self.provider == "lmstudio":
@@ -109,6 +118,12 @@ class LLMClient:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     return json.loads(resp.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
+                if exc.code == 429 or 500 <= exc.code < 600:
+                    last = exc
+                    if attempt < self.retries:
+                        wait = self._retry_after(exc, attempt)
+                        time.sleep(wait)
+                        continue
                 detail = exc.read().decode("utf-8", errors="replace")
                 raise LLMError(f"HTTP {exc.code} from {url}: {detail[:400]}") from exc
             except Exception as exc:  # connection refused, timeout, ...
