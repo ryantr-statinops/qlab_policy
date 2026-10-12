@@ -26,6 +26,10 @@ class LLMClient:
         timeout: int = 60,
         retries: int = 2,
         reasoning_effort: str | None = None,
+        provider: str = "lmstudio",
+        api_key: str = "",
+        extra_headers: dict[str, str] | None = None,
+        auto_detect: bool = True,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -34,6 +38,10 @@ class LLMClient:
         self.timeout = timeout
         self.retries = retries
         self.reasoning_effort = reasoning_effort
+        self.provider = provider
+        self.api_key = api_key
+        self.extra_headers = dict(extra_headers or {})
+        self.auto_detect = auto_detect
 
     @classmethod
     def from_config(cls, cfg: dict, **overrides) -> "LLMClient":
