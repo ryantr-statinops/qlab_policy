@@ -43,6 +43,7 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=None)
     ap.add_argument("--out", default="outputs")
     ap.add_argument("--show-prompt", action="store_true")
+    ap.add_argument("--yes", action="store_true", help="confirm a full billed cloud run")
     args = ap.parse_args()
 
     cache = resolve(data_cfg["cache_dir"])
@@ -96,6 +97,14 @@ def main() -> int:
     print(f"decisions: {min(total_bars, args.max_steps or total_bars)} per episode "
           f"(1 LLM call each)")
     print(f"episodes : {args.episodes}\n")
+    cloud = bool(prov_cfg.get("api_key_env"))
+    if cloud and args.max_steps is None and not args.yes:
+        calls = total_bars * args.episodes
+        print(f"[GUARD] provider {args.provider!r} is billed per token.")
+        print(f"        ~{calls} chat calls x "
+              f"(prompt + {prov_cfg.get('max_tokens', '?')} max tokens) planned.")
+        print("        Re-run with --max-steps 40 for a trial, or pass --yes.")
+        return 2
 
     summary = []
     for ep in range(args.episodes):
