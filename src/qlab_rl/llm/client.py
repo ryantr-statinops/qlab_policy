@@ -222,7 +222,12 @@ class LLMClient:
         choices = response.get("choices") or []
         if not choices:
             raise LLMError(f"response has no choices: {str(response)[:300]}")
-        return (choices[0].get("message") or {}).get("content", "") or ""
+        content = (choices[0].get("message") or {}).get("content", "")
+        if isinstance(content, list):
+            return "".join(
+                b.get("text", "") for b in content if isinstance(b, dict)
+            )
+        return content or ""
 
     @staticmethod
     def reasoning_of(response: dict[str, Any]) -> str:
