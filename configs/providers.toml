@@ -1,0 +1,10 @@
+# Provider presets. Each table shares the same schema.
+# CLI flag > preset > [llm] in policy.toml.
+
+[lmstudio]
+base_url = "http://localhost:1234/v1"
+# empty model + auto_detect = use the model currently loaded in LM Studio
+model = ""
+api_key_env = ""
+auto_detect = true
+timeout_sec = 60
