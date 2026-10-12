@@ -57,11 +57,21 @@ class LLMClient:
             **overrides,
         )
 
+    def _headers(self, content_type: bool = False) -> dict[str, str]:
+        """Request headers: auth bearer only when a key is configured."""
+        headers = {"Accept": "application/json"}
+        if content_type:
+            headers["Content-Type"] = "application/json"
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        headers.update(self.extra_headers)
+        return headers
+
     def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}/{endpoint}"
         body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
-            url, data=body, headers={"Content-Type": "application/json"}
+            url, data=body, headers=self._headers(content_type=True)
         )
         last: Exception | None = None
         for attempt in range(self.retries + 1):
@@ -82,7 +92,7 @@ class LLMClient:
 
     def _get(self, endpoint: str) -> Any:
         url = f"{self.base_url}/{endpoint}"
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        req = urllib.request.Request(url, headers=self._headers())
         try:
             with urllib.request.urlopen(req, timeout=min(self.timeout, 10)) as resp:
                 return json.loads(resp.read().decode("utf-8"))
