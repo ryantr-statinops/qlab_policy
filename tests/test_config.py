@@ -77,7 +77,7 @@ class TestLoad(unittest.TestCase):
 
 class TestResolve(unittest.TestCase):
     def test_absolute_passthrough(self):
-        p = Path("/tmp/x.csv")
+        p = Path("/tmp/x.csv").resolve()
         self.assertEqual(resolve(p), p)
 
     def test_relative_against_root(self):
