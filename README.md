@@ -62,3 +62,19 @@ Executed on local LM Studio using `quyet-1.0-medium` (4B, Qwen3.5 arch, 3.3 GB) 
 1. **Parse rate & throughput:** 100% legal action parsing (25/25) with `reasoning_effort = "none"`, average latency ~2.8s/call.
 2. **Action collapse:** Model picked `SHORT_HALF` for 25/25 steps. With elevated volatility (`vol_20d` > 20%) and negative trailing drawdown, the model persistently shorted into a +7.3% SPY rebound.
 3. **Exposure hallucination:** At step 21, the model stated `SHORT_HALF -50% short to hedge 50% long exposure` while its prior position was already -0.50 short. The prompt must explicitly clarify `exposure` as current net portfolio position.
+
+### Test Split Initial Run (50 bars: 2024-07-03 -> 2024-09-12)
+
+Executed on `test` split (`outputs/ep_test_00.csv`):
+
+| Policy | Return | Sharpe | Max Drawdown | Action / Exposure |
+|---|---|---|---|---|
+| `buy_hold` | **+1.73%** | **+0.59** | -8.41% | 100% Long (+1.00) |
+| `sma20_long_flat` | **+1.19%** | **+0.82** | **-2.59%** | Flat 68%, Long 32% |
+| `quyet-1.0-medium` (LLM) | **-4.96%** | **-3.32** | **-6.03%** | SHORT_HALF 56%, FLAT 24%, LONG_HALF 20% |
+| `random` | -8.16% | -3.30 | -8.75% | Random mix |
+
+**Key Observations**:
+1. **Dynamic shifting:** Unlike `val`, the model actively switched between `FLAT` (24%), `LONG_HALF` (20%), and `SHORT_HALF` (56%).
+2. **Crash timing vs rebound trap:** At step 22 (2024-08-05, Yen carry crash), the model correctly chose `SHORT_HALF`, booking a +1.45% profit. However, it stayed short throughout the subsequent V-shaped recovery to $560 due to lingering 20d volatility metrics.
+3. **Reasoning contradictions:** At step 49, the model hallucinated that `SHORT_HALF -50% short protects downside while capturing upside`.

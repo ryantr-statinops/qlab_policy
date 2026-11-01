@@ -113,19 +113,21 @@ def main() -> int:
         )
         rows: list[dict] = []
         env_for_cb = env
+        out_path = resolve(args.out) / f"ep_{args.split}_{ep:02d}.csv"
 
         def on_step(row, _e=env_for_cb):
             rows.append(row)
             if len(rows) % 25 == 0:
                 print(f"    step {len(rows):>4}/{total_bars}  equity={_e.equity:.4f}")
+                write_records(out_path, rows)
 
         started = time.time()
-        m = run_policy(env, policy, on_step=on_step, max_steps=args.max_steps)
+        try:
+            m = run_policy(env, policy, on_step=on_step, max_steps=args.max_steps)
+        finally:
+            if rows:
+                write_records(out_path, rows)
         elapsed = time.time() - started
-
-        out_path = resolve(args.out) / f"ep_{args.split}_{ep:02d}.csv"
-        write_records(out_path, rows)
-
         rate = len(rows) / elapsed if elapsed else 0.0
         print(f"\n[{ep + 1}/{args.episodes}] {m['steps']} steps in {elapsed:.1f}s "
               f"({rate:.2f} steps/s)")
