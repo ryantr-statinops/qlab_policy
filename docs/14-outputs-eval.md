@@ -27,3 +27,7 @@ What to look at:
 4. **The bar to clear.** `eval.py` ranks LLM vs every rule policy by sharpe
    on the chosen split (`llm:<provider>/<model>`); `eval.py --skip-llm`
    runs baselines only.
+
+Detailed empirical run reports and qualitative diagnostics for v1 local LLM
+runs (`quyet-1.0-medium`) are recorded in
+[docs/17-experimental-reports.md](17-experimental-reports.md).

@@ -21,3 +21,4 @@ Single-source notes for `qlab_rl`. README stays the landing page; details live h
 | `14-outputs-eval.md` | CSV schema, reading results | `src/qlab_rl/runner.py`, `scripts/eval.py` |
 | `15-limits.md` | Limits + next | `README.md`, code comments |
 | `16-providers.md` | Provider presets, keys, cost | `configs/providers.toml`, `src/qlab_rl/llm/client.py` |
+| `17-experimental-reports.md` | v1 empirical runs & diagnostics | `outputs/ep_*.csv` |
